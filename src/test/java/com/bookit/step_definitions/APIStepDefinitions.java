@@ -1,6 +1,5 @@
 package com.bookit.step_definitions;
 
-
 import com.bookit.pojos.Room;
 import com.bookit.utilities.APIUtilities;
 import io.cucumber.java.bs.A;
@@ -18,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.restassured.RestAssured.*;
+import static org.hamcrest.Matchers.*;
 
 public class APIStepDefinitions {
     private Response response;
@@ -32,9 +32,9 @@ public class APIStepDefinitions {
 
     @Given("user accepts content type as {string}")
     public void user_accepts_content_type_as(String string) {
-        if(string.toLowerCase().contains("json")){
+        if (string.toLowerCase().contains("json")) {
             contentType = ContentType.JSON;
-        }else if(string.toLowerCase().contains("xml")){
+        } else if (string.toLowerCase().contains("xml")) {
             contentType = ContentType.XML;
         }
     }
@@ -60,6 +60,7 @@ public class APIStepDefinitions {
     public void user_verifies_that_response_status_code_is(int expected) {
         Assert.assertEquals(expected, response.statusCode());
     }
+
     /**
      * Any number in cucumber test step, becomes step definition  (variable)
      * By changing this number, you are not changing a context of test step
@@ -68,7 +69,7 @@ public class APIStepDefinitions {
 
     @When("user sends POST request to {string} with following information:")
     public void user_sends_POST_request_to_with_following_information(String path, List<Map<String, String>> students) {
-        for(Map<String, String> student: students){
+        for (Map<String, String> student : students) {
             response = given().
                     auth().oauth2(token).
                     queryParams(student).
@@ -88,23 +89,51 @@ public class APIStepDefinitions {
 //        so we cannot change order
 //        Collections.sort(rooms);
 
-        for (Room room: rooms){
+        for (Room room : rooms) {
             System.out.println(room.getName());
         }
 
         System.out.println("#########AFTER SORTING##########");
         //create new list to overcome the issue with Unmodifiable list
         List<Room> rooms2 = new ArrayList<>(rooms);
+
         Collections.sort(rooms2);
 
-        for (Room room: rooms2){
+        for (Room room : rooms2) {
             System.out.println(room.getName());
         }
     }
 
+    @Then("user payload contains following room names:")
+    public void user_payload_contains_following_room_names(List<String> dataTable) {
+
+        List<String> actualRoomNames = response.jsonPath().getList("name");
+
+        Assert.assertTrue(actualRoomNames.containsAll(dataTable));
+    }
+
+    @When("user sends DELETE request to {string} to exclude student")
+    public void user_sends_DELETE_request_to_to_exclude_student(String string) {
+        response = given().
+                accept(contentType).auth().oauth2(token).
+                when().
+                delete(string).prettyPeek();
+    }
+
+    @When("user verifies that status line contains {string}")
+    public void user_verifies_that_status_line_contains(String string) {
+        Assert.assertTrue(response.statusLine().contains(string));
+    }
+
+    @When("user verifies that payload contains {string} message")
+    public void user_verifies_that_payload_contains_message(String string) {
+        response.then().assertThat().body("", contains(string));
+    }
 
     @Then("user deletes previously added students")
     public void user_deletes_previously_added_students(List<Map<String, String>> students) {
-
+        for (Map<String, String> student : students) {
+            response = APIUtilities.deleteMe(student.get("email"), student.get("password"));
+        }
     }
 }
